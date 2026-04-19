@@ -4,9 +4,10 @@
 **Auteur :** Julien Mer — JMer Consulting
 **Date :** 19 avril 2026
 **Statut :** A implementer
-**Repo cible :** oculix-org/operix
+**Repo cible :** oculix-org/operix-python
 **PyPI :** oculix
-**Dependance :** oculixapi (Maven Central)
+**Dependance :** `io.github.oculix-org:oculixapi:3.0.1` (Maven Central)
+**Prerequis :** Java 11+ (Eclipse Temurin / Azul Zulu recommandes)
 
 ---
 

@@ -1,0 +1,49 @@
+name: Release .NET (NuGet)
+
+# Manual trigger only. Requires the NUGET_API_KEY repo secret
+# (https://www.nuget.org/account/apikeys).
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Package version (X.Y.Z). Must match dotnet/src/OculiX/OculiX.csproj.'
+        required: true
+        type: string
+
+permissions:
+  contents: write   # create the git tag at the end
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '8.0.x' }
+
+      - name: Verify OculiX.csproj version matches the input
+        working-directory: dotnet/src/OculiX
+        run: |
+          ACTUAL="$(grep -oP '(?<=<Version>)[^<]+' OculiX.csproj | head -1)"
+          if [ "${{ inputs.version }}" != "$ACTUAL" ]; then
+            echo "::error::OculiX.csproj <Version> ($ACTUAL) != input (${{ inputs.version }})"
+            exit 1
+          fi
+
+      - name: Pack
+        working-directory: dotnet/src/OculiX
+        run: dotnet pack -c Release -o nupkg
+
+      - name: Push to NuGet
+        working-directory: dotnet/src/OculiX
+        run: |
+          dotnet nuget push "nupkg/OculiX.${{ inputs.version }}.nupkg" \
+            --api-key "${{ secrets.NUGET_API_KEY }}" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+
+      - name: Create git tag
+        run: |
+          git tag dotnet-v${{ inputs.version }}
+          git push origin dotnet-v${{ inputs.version }}

@@ -1,0 +1,70 @@
+name: Release Node.js (npm)
+
+# Manual trigger only.
+# Setup options (pick one):
+#   A) npm Trusted Publisher (recommended): zero secret, OIDC. Configure on:
+#      https://www.npmjs.com/package/oculix/access  (after the first publish)
+#      Add a "Trusted publisher" of type GitHub Actions:
+#        Organization: oculix-org
+#        Repository:   Operix
+#        Workflow:     release-nodejs.yml
+#        Environment:  (leave empty)
+#      First-time bootstrap: the package must exist on npm before Trusted
+#      Publishing can be enabled. Either create an empty 0.0.0 placeholder
+#      manually with `npm publish` once, OR temporarily uncomment the
+#      NODE_AUTH_TOKEN line below and use NPM_TOKEN for the very first run.
+#   B) Long-lived NPM_TOKEN: less secure, npm warns against it. If you go
+#      this route, comment out the `id-token: write` permission and
+#      uncomment the NODE_AUTH_TOKEN env var below.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Package version (X.Y.Z). Must match nodejs/package.json.'
+        required: true
+        type: string
+
+permissions:
+  contents: write   # create the git tag at the end
+  id-token: write   # OIDC for npm Trusted Publisher
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+          cache: npm
+          cache-dependency-path: nodejs/package-lock.json
+
+      - name: Verify package.json version matches the input
+        working-directory: nodejs
+        run: |
+          ACTUAL="$(node -p "require('./package.json').version")"
+          if [ "${{ inputs.version }}" != "$ACTUAL" ]; then
+            echo "::error::package.json version ($ACTUAL) != input (${{ inputs.version }})"
+            exit 1
+          fi
+
+      - name: Install
+        working-directory: nodejs
+        run: npm ci
+
+      - name: Build (tsc)
+        working-directory: nodejs
+        run: npm run build
+
+      - name: Publish to npm (with OIDC provenance)
+        working-directory: nodejs
+        # env:
+        #   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}   # uncomment for token mode
+        run: npm publish --provenance --access public
+
+      - name: Create git tag
+        run: |
+          git tag nodejs-v${{ inputs.version }}
+          git push origin nodejs-v${{ inputs.version }}

@@ -1,0 +1,104 @@
+name: CI
+
+# Manual-only — trigger from the Actions tab.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  jvm-bridge:
+    name: JVM bridge (Java)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: Run unit tests
+        working-directory: jvm-bridge
+        run: mvn -B test
+      - name: Build fat JAR
+        working-directory: jvm-bridge
+        run: mvn -B package -DskipTests
+      - name: Upload JAR artifact (used by other jobs)
+        uses: actions/upload-artifact@v4
+        with:
+          name: operix-jvm-bridge-jar
+          path: jvm-bridge/target/operix-jvm-bridge.jar
+          retention-days: 1
+
+  python:
+    name: Python wrapper
+    needs: jvm-bridge
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.9', '3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - uses: actions/setup-python@v5
+        with: { python-version: '${{ matrix.python }}' }
+      - uses: actions/download-artifact@v4
+        with:
+          name: operix-jvm-bridge-jar
+          path: jvm-bridge/target/
+      - name: Install package + pytest
+        working-directory: python
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e . pytest
+      - name: Run tests
+        working-directory: python
+        run: python -m pytest -q
+
+  nodejs:
+    name: Node.js wrapper
+    needs: jvm-bridge
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: ['18', '20', '22']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '${{ matrix.node }}'
+          cache: npm
+          cache-dependency-path: nodejs/package-lock.json
+      - uses: actions/download-artifact@v4
+        with:
+          name: operix-jvm-bridge-jar
+          path: jvm-bridge/target/
+      - name: Install
+        working-directory: nodejs
+        run: npm ci
+      - name: Test
+        working-directory: nodejs
+        run: npm test
+      - name: Build (tsc)
+        working-directory: nodejs
+        run: npm run build
+
+  dotnet:
+    name: .NET wrapper
+    needs: jvm-bridge
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '8.0.x' }
+      - uses: actions/download-artifact@v4
+        with:
+          name: operix-jvm-bridge-jar
+          path: jvm-bridge/target/
+      - name: Test
+        working-directory: dotnet
+        run: dotnet test --logger "console;verbosity=normal"

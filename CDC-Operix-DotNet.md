@@ -6,7 +6,8 @@
 **Statut :** A implementer
 **Repo cible :** oculix-org/operix-dotnet
 **NuGet :** OculiX
-**Dependance :** oculixapi (Maven Central) converti via IKVM
+**Dependance :** `io.github.oculix-org:oculixapi:3.0.2` (Maven Central) converti via IKVM
+**Prerequis :** .NET 8+, Java 11+ bytecode (cible d'oculixapi)
 
 ---
 
@@ -39,17 +40,19 @@ var app = App.Open("notepad");
 
 ### Option A : IKVM.NET (recommande)
 
-IKVM.NET convertit le bytecode Java en assemblies .NET. Le JAR OculiX
-devient une DLL .NET native, appelable directement depuis C# sans JVM.
+IKVM (projet `ikvm-revived`, version 8.x) convertit le bytecode Java en
+assemblies .NET. Le JAR OculiX devient une DLL .NET native, appelable
+directement depuis C# sans JVM.
 
 ```
-oculixapi.jar  --IKVM-->  OculiX.dll  --NuGet-->  dotnet add package OculiX
+oculixapi-3.0.2.jar  --IKVM-->  OculiX.dll  --NuGet-->  dotnet add package OculiX
 ```
 
 - Zero JVM a l'execution
 - Appels natifs C# (pas de pont, pas de serialisation)
 - Performance identique a Java
-- IKVM 8.x supporte Java 17 bytecode
+- IKVM 8.x supporte le bytecode Java 11+ (cible d'oculixapi 3.x)
+- Repo Oculix utilise tel quel sans modification
 
 ### Option B : Process bridge (fallback)
 
@@ -77,10 +80,11 @@ oculix-org/operix-dotnet/
 |       |-- Region.cs
 |       |-- Pattern.cs
 |       |-- App.cs
-|       |-- VNCScreen.cs
-|       |-- ADBScreen.cs
-|       |-- SSHTunnel.cs
-|       |-- OCR.cs
+|       |-- VNCScreen.cs           # wraps org.sikuli.vnc.VNCScreen
+|       |-- ADBScreen.cs           # wraps org.sikuli.android.ADBScreen
+|       |-- SSHTunnel.cs           # wraps com.sikulix.util.SSHTunnel
+|       |-- OCR.cs                 # wraps org.sikuli.script.OCR
+|       |-- PaddleOCR.cs           # wraps com.sikulix.ocr.PaddleOCREngine
 |       |-- Key.cs
 |       |-- Match.cs
 |       |-- FindFailed.cs
@@ -277,6 +281,76 @@ namespace OculiX
 }
 ```
 
+### 5.5 ADBScreen.cs
+
+```csharp
+// IMPORTANT: ADBScreen lives in org.sikuli.android in Oculix 3.x
+// (NOT org.sikuli.script as in older SikuliX versions)
+namespace OculiX
+{
+    public class ADBScreen
+    {
+        private readonly org.sikuli.android.ADBScreen _adb;
+
+        private ADBScreen(org.sikuli.android.ADBScreen adb) { _adb = adb; }
+
+        public static ADBScreen Start(string adbPath)
+        {
+            return new ADBScreen(org.sikuli.android.ADBScreen.start(adbPath));
+        }
+
+        public void Click(string target) => _adb.click(target);
+        public void Type(string text) => _adb.type(text);
+    }
+}
+```
+
+### 5.6 PaddleOCR.cs
+
+```csharp
+// Oculix's neural OCR engine (com.sikulix.ocr.PaddleOCREngine).
+// Differentiator vs Tesseract — bundled with oculixapi 3.x.
+namespace OculiX
+{
+    public class PaddleOCR
+    {
+        private readonly com.sikulix.ocr.PaddleOCREngine _engine;
+
+        public PaddleOCR()
+        {
+            _engine = com.sikulix.ocr.PaddleOCREngine.getInstance();
+        }
+
+        public string Read(java.awt.image.BufferedImage img) => _engine.readText(img);
+    }
+}
+```
+
+### 5.7 SSHTunnel.cs
+
+```csharp
+// Lives in com.sikulix.util (NOT org.sikuli.*)
+namespace OculiX
+{
+    public class SSHTunnel
+    {
+        private readonly com.sikulix.util.SSHTunnel _tunnel;
+
+        public SSHTunnel(string user, string host, int port, string password)
+        {
+            _tunnel = new com.sikulix.util.SSHTunnel(user, host, port, password);
+        }
+
+        public void Open(int localPort, string remoteHost, int remotePort)
+        {
+            _tunnel.open(localPort, remoteHost, remotePort);
+        }
+
+        public void Close() => _tunnel.close();
+    }
+}
+```
+
 ## 6. Exemples d'usage
 
 ### 6.1 Script basique
@@ -404,6 +478,8 @@ vnc.Stop();
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="IKVM" Version="8.9.2" />
+    <!-- IKVM downloads oculixapi-3.0.2.jar from Maven Central at build time -->
+    <MavenReference Include="io.github.oculix-org:oculixapi" Version="3.0.2" />
   </ItemGroup>
 </Project>
 ```
@@ -411,34 +487,44 @@ vnc.Stop();
 ## 8. IKVM conversion du JAR
 
 ```bash
-# Convertir oculixapi.jar en DLL .NET
+# Conversion manuelle pour debug
 ikvmc -target:library -out:OculiX.Core.dll oculixapi-3.0.2.jar
 
-# Ou via le package NuGet IKVM (automatique au build)
-# Le .csproj reference IKVM et le JAR est converti au build time
+# Production : le .csproj reference IKVM + MavenReference
+# (IKVM 8.9.2+ resout la dependance Maven et convertit automatiquement
+#  oculixapi.jar + ses transitives en assemblies .NET au build time)
 ```
+
+**Apertix OpenCV :** `oculixapi` depend de `io.github.julienmerconsulting.apertix:opencv:4.10.0-0`
+qui embarque les natifs OpenCV (Win/Mac/Linux). IKVM doit packager ces
+natifs comme `runtime` natifs .NET (`runtimes/{rid}/native/`) pour que
+P/Invoke fonctionne sur chaque plateforme. **A spike imperatif en Phase 1**
+car c'est le seul vrai inconnu technique du projet.
 
 ## 9. Risques et mitigations
 
 | Risque | Mitigation |
 |---|---|
-| IKVM ne gere pas les natives OpenCV | Fallback vers process bridge (JSON-RPC). Ou embarquer les natives OpenCV separement |
-| IKVM Java 17 support | IKVM 8.x supporte Java 17. Verifier avec les features Java 17 utilisees |
-| Taille du package NuGet | Le JAR converti + IKVM runtime = ~50-100 MB. Acceptable pour un outil de test |
+| IKVM + natifs Apertix OpenCV | **Spike J1 obligatoire.** Si echec, fallback process bridge (JSON-RPC comme Node). Sinon embarquer les natifs `runtimes/{rid}/native/` |
+| IKVM bytecode Java 11+ | IKVM 8.x (`ikvm-revived`) supporte Java 8 a 17. Oculix cible Java 11 donc OK. A re-tester si Oculix passe a Java 17 |
+| Taille du package NuGet | Le JAR converti + natifs OpenCV + IKVM runtime = ~80-150 MB. Acceptable pour un outil de test desktop |
 | API naming convention | Java = camelCase, C# = PascalCase. Le wrapper traduit les noms |
+| Packages Java non standards | `org.sikuli.android.*`, `com.sikulix.ocr.*`, `com.sikulix.util.*` co-existent avec `org.sikuli.script.*`. Les wrappers C# masquent ca |
 | .NET 8 minimum | Acceptable en 2026, .NET 6 est en fin de vie |
 
 ## 10. Roadmap
 
 | Phase | Contenu | Duree |
 |---|---|---|
+| Phase 0 | **Spike IKVM + Apertix OpenCV sur Win/Mac/Linux** (go/no-go) | 2 jours |
 | Phase 1 | IKVM conversion + Screen + Pattern + App | 3 jours |
-| Phase 2 | VNCScreen + ADBScreen + SSHTunnel | 2 jours |
-| Phase 3 | NUnit + SpecFlow examples | 1 jour |
-| Phase 4 | NuGet publication + README | 1 jour |
-| Phase 5 | CI (GitHub Actions: test on Win/Mac/Linux) | 1 jour |
+| Phase 2 | VNCScreen + ADBScreen (`org.sikuli.android`) + SSHTunnel (`com.sikulix.util`) | 2 jours |
+| Phase 3 | PaddleOCR (`com.sikulix.ocr`) + OCR examples | 1 jour |
+| Phase 4 | NUnit + SpecFlow examples | 1 jour |
+| Phase 5 | NuGet publication + README | 1 jour |
+| Phase 6 | CI (GitHub Actions: test on Win/Mac/Linux) | 1 jour |
 
-**Total : ~1 semaine**
+**Total : ~1.5 a 2 semaines** (avec le spike IKVM initial)
 
 ## 11. Avantage IKVM vs Process Bridge
 

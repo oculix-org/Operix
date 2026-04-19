@@ -6,7 +6,8 @@
 **Statut :** A implementer
 **Repo cible :** oculix-org/operix-js
 **npm :** oculix
-**Dependance :** oculixapi (Maven Central)
+**Dependance :** `io.github.oculix-org:oculixapi:3.0.2` (Maven Central)
+**Prerequis :** Java 11+ (Eclipse Temurin / Azul Zulu recommandes), Node.js 18+
 
 ---
 
@@ -38,21 +39,29 @@ const app = await App.open("notepad");
 ## 3. Architecture
 
 ```
-+---------------------+              +---------------------+
-|   Node.js process   |  java-caller |   JVM process       |
-|                     |   (child)    |                     |
-|   const screen =    |<------------>|   oculixapi.jar     |
-|   new Screen()      |   stdin/out  |   + JSON-RPC server |
-|                     |              |                     |
-+---------------------+              +---------------------+
++---------------------+              +---------------------------+
+|   Node.js process   |   spawn      |   JVM process             |
+|                     |   stdin/out  |                           |
+|   const screen =    |<------------>|   oculixapi-3.0.2.jar     |
+|   new Screen()      |   JSON-RPC   |   + operix-rpc-server.jar |
+|                     |              |   (org.operix.rpc.Server) |
++---------------------+              +---------------------------+
 ```
 
-**Pont Java pour Node.js :** `java-caller` (npm package) lance la JVM comme child process
-et communique via stdin/stdout en JSON. Alternative : `node-java-bridge` qui utilise JNI
-(plus performant, plus complexe a builder cross-platform).
+**Pont Java pour Node.js :** un mini-serveur JSON-RPC custom (`org.operix.rpc.Server`)
+ecrit dans CE repo (`operix-js`), compile en `operix-rpc-server.jar` et bundle
+dans le package npm. La JVM est lancee en child process avec
+`oculixapi.jar + operix-rpc-server.jar` sur le classpath et communique en
+JSON-RPC ligne par ligne via stdin/stdout. Aucune modification du repo Oculix.
 
-**Recommandation :** `java-caller` pour la V1 (simple, cross-platform, zero native deps).
-Migrer vers `node-java-bridge` si la latence pose probleme.
+**Pourquoi pas une lib existante ?**
+- `java-caller` lance la JVM par appel = latence inacceptable (3s par click).
+- `node-java-bridge` (JNI) = plus rapide mais build cross-platform penible et
+  natifs OpenCV (Apertix) deja presents dans le JAR rendent le mix JNI risque.
+- `py4j` n'a pas de client Node officiel.
+
+Donc V1 = JSON-RPC custom (~150 lignes de Java). Migration vers
+`node-java-bridge` envisageable en V2 si le besoin se confirme.
 
 ## 4. Structure du repo
 
@@ -74,7 +83,11 @@ oculix-org/operix-js/
 |   |-- ocr.ts                # wrapper OCR
 |   +-- keys.ts               # constantes Key, KeyModifier
 |-- java/
-|   +-- OculixJsonRpcServer.java  # serveur JSON-RPC dans la JVM
+|   |-- pom.xml                   # build du mini JAR JSON-RPC (depend d'oculixapi)
+|   +-- src/main/java/org/operix/rpc/
+|       |-- Server.java           # boucle JSON-RPC stdin/stdout
+|       |-- Dispatcher.java       # routage class/method via reflection
+|       +-- ObjectRegistry.java   # mapping id -> objet Java vivant
 |-- tests/
 |   |-- gateway.test.ts
 |   |-- screen.test.ts
@@ -96,19 +109,21 @@ import * as fs from 'fs';
 import * as https from 'https';
 
 const JAR_DIR = path.join(require('os').homedir(), '.oculix', 'lib');
-const JAR_NAME = 'oculixapi-3.0.2.jar';
-const JAR_URL = 'https://repo1.maven.org/maven2/io/github/oculix-org/oculixapi/3.0.2/oculixapi-3.0.2.jar';
+const OCULIX_JAR_NAME = 'oculixapi-3.0.2.jar';
+const OCULIX_JAR_URL = 'https://repo1.maven.org/maven2/io/github/oculix-org/oculixapi/3.0.2/oculixapi-3.0.2.jar';
+// shipped inside the npm package (compiled at npm publish time)
+const RPC_JAR_PATH = path.join(__dirname, '..', 'java-bin', 'operix-rpc-server.jar');
 
 let jvmProcess: ChildProcess | null = null;
 let requestId = 0;
 let pendingRequests = new Map<number, { resolve: Function, reject: Function }>();
 
-async function ensureJar(): Promise<string> {
-  const jarPath = path.join(JAR_DIR, JAR_NAME);
+async function ensureOculixJar(): Promise<string> {
+  const jarPath = path.join(JAR_DIR, OCULIX_JAR_NAME);
   if (!fs.existsSync(jarPath)) {
     fs.mkdirSync(JAR_DIR, { recursive: true });
-    console.log(`[OculiX] Downloading ${JAR_NAME}...`);
-    await downloadFile(JAR_URL, jarPath);
+    console.log(`[OculiX] Downloading ${OCULIX_JAR_NAME}...`);
+    await downloadFile(OCULIX_JAR_URL, jarPath);
     console.log(`[OculiX] Saved to ${jarPath}`);
   }
   return jarPath;
@@ -116,9 +131,11 @@ async function ensureJar(): Promise<string> {
 
 export async function start(): Promise<void> {
   if (jvmProcess) return;
-  const jarPath = await ensureJar();
+  const oculixJar = await ensureOculixJar();
+  const sep = process.platform === 'win32' ? ';' : ':';
+  const classpath = `${oculixJar}${sep}${RPC_JAR_PATH}`;
 
-  jvmProcess = spawn('java', ['-cp', jarPath, 'org.sikuli.script.OculixJsonRpcServer'], {
+  jvmProcess = spawn('java', ['-cp', classpath, 'org.operix.rpc.Server'], {
     stdio: ['pipe', 'pipe', 'pipe']
   });
 
@@ -249,22 +266,43 @@ export class Pattern {
 }
 
 export class VNCScreen {
+  // Backed by org.sikuli.vnc.VNCScreen
   static async start(host: string, port: number, password: string,
                      width: number, height: number): Promise<VNCScreen> {
-    await call('VNCScreen', 'start', host, port, password, width, height);
+    await call('org.sikuli.vnc.VNCScreen', 'start', host, port, password, width, height);
     return new VNCScreen();
   }
 
   async click(target: string): Promise<void> {
-    await call('VNCScreen', 'click', target);
+    await call('org.sikuli.vnc.VNCScreen', 'click', target);
   }
 
   async type(text: string): Promise<void> {
-    await call('VNCScreen', 'type', text);
+    await call('org.sikuli.vnc.VNCScreen', 'type', text);
   }
 
   async stop(): Promise<void> {
-    await call('VNCScreen', 'stop');
+    await call('org.sikuli.vnc.VNCScreen', 'stop');
+  }
+}
+
+export class ADBScreen {
+  // Backed by org.sikuli.android.ADBScreen (NOT org.sikuli.script)
+  static async start(adbPath: string): Promise<ADBScreen> {
+    await call('org.sikuli.android.ADBScreen', 'start', adbPath);
+    return new ADBScreen();
+  }
+
+  async click(target: string): Promise<void> {
+    await call('org.sikuli.android.ADBScreen', 'click', target);
+  }
+}
+
+export class PaddleOCR {
+  // Backed by com.sikulix.ocr.PaddleOCREngine — Oculix's neural OCR engine
+  static async getInstance(): Promise<PaddleOCR> {
+    await call('com.sikulix.ocr.PaddleOCREngine', 'getInstance');
+    return new PaddleOCR();
   }
 }
 
@@ -397,8 +435,10 @@ testPOS();
 
 | Risque | Mitigation |
 |---|---|
-| Java pas installe | Message clair au premier appel + lien download |
-| Latence JSON-RPC | Acceptable pour visual testing (actions = secondes). Migrer vers node-java-bridge si necessaire |
+| Java 11+ pas installe | Message clair au premier appel + lien download Eclipse Temurin |
+| Latence JSON-RPC | Acceptable pour visual testing (actions = secondes). PaddleOCR retourne des JSON volumineux : a benchmarker. Migrer vers node-java-bridge si necessaire |
+| Build du JAR JSON-RPC | Maven build dans `java/` au `npm prepublish`, JAR shippe dans `java-bin/` du package npm |
+| Apertix OpenCV natifs | Bundle dans oculixapi.jar, charge cote JVM. A tester sur Win/Mac M1/Linux dans la CI |
 | async/await partout | Normal en Node, pas un probleme |
 | TypeScript obligatoire | Non, le package compile en JS, utilisable sans TS |
 | Concurrence avec Playwright | Complementaire, pas concurrent (browser vs desktop) |
@@ -407,13 +447,14 @@ testPOS();
 
 | Phase | Contenu | Duree |
 |---|---|---|
-| Phase 1 | Gateway + Screen + Pattern + App | 3 jours |
-| Phase 2 | VNCScreen + ADBScreen | 1 jour |
-| Phase 3 | TypeScript types + Jest examples | 1 jour |
-| Phase 4 | Playwright hybrid example | 1 jour |
-| Phase 5 | npm publication + README | 1 jour |
+| Phase 1 | Mini serveur JSON-RPC Java (`org.operix.rpc.Server`) + Maven build | 2 jours |
+| Phase 2 | Gateway TS + Screen + Pattern + App | 2 jours |
+| Phase 3 | VNCScreen + ADBScreen (`org.sikuli.android`) + PaddleOCR (`com.sikulix.ocr`) | 1 jour |
+| Phase 4 | TypeScript types + Jest examples | 1 jour |
+| Phase 5 | Playwright hybrid example | 1 jour |
+| Phase 6 | npm publication + README | 1 jour |
 
-**Total : ~1 semaine**
+**Total : ~1.5 semaine** (le mini-serveur JSON-RPC ajoute 2 jours)
 
 ---
 

@@ -65,7 +65,30 @@
                                         <exclude>META-INF/*.SF</exclude>
                                         <exclude>META-INF/*.DSA</exclude>
                                         <exclude>META-INF/*.RSA</exclude>
+                                        <!-- module-info pollutes the uber jar in many copies;
+                                             we run as a classpath jar, not a JPMS module. -->
                                         <exclude>module-info.class</exclude>
+                                        <exclude>META-INF/versions/*/module-info.class</exclude>
+                                        <!-- Cosmetic noise from many libs. -->
+                                        <exclude>META-INF/LICENSE</exclude>
+                                        <exclude>META-INF/LICENSE.txt</exclude>
+                                        <exclude>META-INF/NOTICE</exclude>
+                                        <exclude>META-INF/NOTICE.txt</exclude>
+                                        <exclude>META-INF/DEPENDENCIES</exclude>
+                                        <exclude>META-INF/AL2.0</exclude>
+                                        <exclude>META-INF/LGPL2.1</exclude>
+                                        <exclude>versionchanges.txt</exclude>
+                                        <exclude>LICENSE</exclude>
+                                    </excludes>
+                                </filter>
+                                <filter>
+                                    <!-- oculixapi.jar embeds its own copy of the OpenCV
+                                         Java wrappers. Drop them so Apertix's copy wins —
+                                         Apertix is the canonical OpenCV dep with paired
+                                         natives (libopencv_java490.so / .dll / .dylib). -->
+                                    <artifact>io.github.oculix-org:oculixapi</artifact>
+                                    <excludes>
+                                        <exclude>org/opencv/**</exclude>
                                     </excludes>
                                 </filter>
                             </filters>

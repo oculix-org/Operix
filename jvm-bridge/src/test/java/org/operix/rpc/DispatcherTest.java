@@ -138,6 +138,19 @@ class DispatcherTest {
     }
 
     @Test
+    void overload_resolution_picks_double_when_arg_is_fractional() throws Exception {
+        // Regression: Math.max has int/long/float/double overloads. A JSON
+        // 3.5 (parsed as Double) must hit Math.max(double,double), not the
+        // int overload that would silently truncate to 3.
+        JSONObject req = new JSONObject()
+                .put("class", "java.lang.Math")
+                .put("method", "max")
+                .put("static", true)
+                .put("args", new JSONArray().put(3.5).put(2.5));
+        assertEquals(3.5, dispatcher.dispatch(req).getDouble("result"), 0.0001);
+    }
+
+    @Test
     void overload_resolution_by_arg_type() throws Exception {
         JSONObject ctor = new JSONObject()
                 .put("class", Calculator.class.getName())

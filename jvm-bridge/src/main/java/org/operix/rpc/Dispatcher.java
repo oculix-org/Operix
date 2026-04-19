@@ -110,8 +110,8 @@ final class Dispatcher {
     }
 
     /**
-     * Match score: 2 = exact assignable, 1 = compatible (numeric widening,
-     * primitive boxing), 0 = will need coercion, -1 = incompatible.
+     * Match score for the whole arg list. Higher is better, -1 means at least
+     * one arg is incompatible.
      */
     private static int score(Class<?>[] formals, Object[] args) {
         int total = 0;
@@ -123,24 +123,57 @@ final class Dispatcher {
         return total;
     }
 
+    /**
+     * Per-arg score:
+     *   3 = natural fit (Double -> double/Double, Integer -> int/Integer, etc.)
+     *   2 = same numeric family with widening (Integer -> long, Float -> double)
+     *   1 = cross-family numeric coercion that loses information
+     *       (Double -> int, Integer -> double when no better candidate exists)
+     *   0 = JSON null in a non-primitive slot
+     *  -1 = incompatible
+     *
+     * Without this fine-grained ranking we'd pick {@code Math.max(int,int)}
+     * over {@code Math.max(double,double)} when given JSON 3.5.
+     */
     private static int scoreOne(Class<?> formal, Object arg) {
         if (arg == null) return formal.isPrimitive() ? -1 : 1;
         Class<?> a = arg.getClass();
-        // Exact match (including String->String, CharSequence->CharSequence)
-        if (formal.isAssignableFrom(a)) return 2;
-        // Numeric coercion
+
+        if (formal.isAssignableFrom(a)) return 3;
+
         if (arg instanceof Number) {
-            if (formal == int.class    || formal == Integer.class
-             || formal == long.class   || formal == Long.class
-             || formal == double.class || formal == Double.class
-             || formal == float.class  || formal == Float.class
-             || formal == short.class  || formal == Short.class
-             || formal == byte.class   || formal == Byte.class) return 1;
+            // Integer family — small whole numbers
+            if (a == Integer.class || a == Short.class || a == Byte.class) {
+                if (formal == int.class    || formal == Integer.class)  return 3;
+                if (formal == long.class   || formal == Long.class)     return 2;
+                if (formal == short.class  || formal == Short.class)    return 2;
+                if (formal == byte.class   || formal == Byte.class)     return 2;
+                if (formal == double.class || formal == Double.class)   return 2;
+                if (formal == float.class  || formal == Float.class)    return 2;
+            }
+            // Long family
+            if (a == Long.class) {
+                if (formal == long.class   || formal == Long.class)     return 3;
+                if (formal == double.class || formal == Double.class)   return 2;
+                if (formal == float.class  || formal == Float.class)    return 1;
+                if (formal == int.class    || formal == Integer.class)  return 1;
+            }
+            // Double family — fractional values
+            if (a == Double.class || a == java.math.BigDecimal.class) {
+                if (formal == double.class || formal == Double.class)   return 3;
+                if (formal == float.class  || formal == Float.class)    return 2;
+                if (formal == long.class   || formal == Long.class)     return 1;
+                if (formal == int.class    || formal == Integer.class)  return 1;
+            }
+            // Float family
+            if (a == Float.class) {
+                if (formal == float.class  || formal == Float.class)    return 3;
+                if (formal == double.class || formal == Double.class)   return 2;
+            }
         }
-        // Boolean primitive
-        if (arg instanceof Boolean && (formal == boolean.class || formal == Boolean.class)) return 2;
-        // String -> CharSequence happens via isAssignableFrom above, so a true
-        // mismatch here means the caller passed the wrong shape.
+
+        if (arg instanceof Boolean && (formal == boolean.class || formal == Boolean.class)) return 3;
+
         return -1;
     }
 

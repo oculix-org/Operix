@@ -36,69 +36,80 @@ screen.Click("button.png");
 var app = App.Open("notepad");
 ```
 
-## 3. Architecture — Deux approches
+## 3. Architecture — Trois options, **Option A en defaut**
 
-### Option A : IKVM.NET (recommande)
+### Option A : Process Bridge JSON-RPC (retenue V1)
 
-IKVM (projet `ikvm-revived`, version 8.x) convertit le bytecode Java en
-assemblies .NET. Le JAR OculiX devient une DLL .NET native, appelable
-directement depuis C# sans JVM.
-
-```
-oculixapi-3.0.2.jar  --IKVM-->  OculiX.dll  --NuGet-->  dotnet add package OculiX
-```
-
-- Zero JVM a l'execution
-- Appels natifs C# (pas de pont, pas de serialisation)
-- Performance identique a Java
-- IKVM 8.x supporte le bytecode Java 11+ (cible d'oculixapi 3.x)
-- Repo Oculix utilise tel quel sans modification
-
-### Option B : Process bridge (fallback)
-
-Si IKVM pose des problemes de compatibilite (natives OpenCV, JNI),
-fallback vers un modele client-serveur comme Node.js :
+Une JVM child process execute `oculixapi.jar` + un mini-serveur JSON-RPC
+(`org.operix.rpc.Server`, ~200 lignes, vit dans ce monorepo sous
+`jvm-bridge/`). Le client C# communique en JSON ligne par ligne via
+stdin/stdout.
 
 ```
-C# client  --JSON-RPC-->  JVM process (oculixapi.jar + JSON-RPC server)
++---------------------+          +---------------------------+
+|   .NET process      |  spawn   |   JVM process             |
+|                     | stdin/   |                           |
+|   var s = new       |<-------->|   oculixapi-3.0.2.jar     |
+|   Screen();         | stdout   |   + operix-jvm-bridge.jar |
+|   s.Click("x.png")  | JSON-RPC |   (org.operix.rpc.Server) |
++---------------------+          +---------------------------+
 ```
 
-Plus simple mais necessite Java installe. Recommande seulement si
-IKVM ne gere pas les natives OpenCV.
+**Avantages :**
+- Fonctionne **aujourd'hui** avec Oculix 3.x (Java 17 bytecode)
+- **Code Java mutualise avec operix-js** (meme `jvm-bridge/` sert Node et .NET)
+- Aucune modification d'Oculix
+- Isolation JVM : si Oculix crashe, le process .NET survit
+- Pas de probleme de natifs (OpenCV Apertix reste dans la JVM, P/Invoke non requis)
 
-## 4. Structure du repo
+**Tradeoff :** une JVM a lancer (~200 MB RAM), serialisation JSON sur
+chaque appel (~1-5 ms de latence par appel, negligeable pour du visual
+testing ou les actions sont de l'ordre de la seconde).
+
+### Option B : IKVM in-process (bloquee, futur)
+
+Spike effectue le 19 avril 2026 (Linux x64, IKVM 8.15.0 stable dec 2025) :
+**IKVM 8.x ne sait pas convertir le bytecode Java 17** (class file major=61)
+qui est la cible de build d'oculixapi 3.x. Resultat : DLL genere mais
+**0 type .NET expose**. Re-evaluable quand IKVM 9.x (support Java 11+)
+sera stable.
+
+### Option C : Javonet (commercial)
+
+In-process, supporte Java 17, mais **$69/instance/mois** et licence
+commerciale non-redistribuable en MIT. Incompatible avec un NuGet OSS.
+A considerer uniquement si un client entreprise finance une integration
+dediee.
+
+---
+
+## 4. Structure du repo (monorepo Operix)
 
 ```
-oculix-org/operix-dotnet/
-|-- README.md
-|-- LICENSE (MIT)
-|-- OculiX.sln
-|-- src/
-|   +-- OculiX/
-|       |-- OculiX.csproj
-|       |-- Screen.cs
-|       |-- Region.cs
-|       |-- Pattern.cs
-|       |-- App.cs
-|       |-- VNCScreen.cs           # wraps org.sikuli.vnc.VNCScreen
-|       |-- ADBScreen.cs           # wraps org.sikuli.android.ADBScreen
-|       |-- SSHTunnel.cs           # wraps com.sikulix.util.SSHTunnel
-|       |-- OCR.cs                 # wraps org.sikuli.script.OCR
-|       |-- PaddleOCR.cs           # wraps com.sikulix.ocr.PaddleOCREngine
-|       |-- Key.cs
-|       |-- Match.cs
-|       |-- FindFailed.cs
-|       +-- Settings.cs
-|-- tests/
-|   +-- OculiX.Tests/
-|       |-- OculiX.Tests.csproj
-|       |-- ScreenTests.cs
-|       |-- AppTests.cs
-|       +-- PatternTests.cs
-+-- examples/
-    |-- BasicExample/
-    |-- NUnitExample/
-    +-- SpecFlowExample/
+oculix-org/Operix/
+|-- jvm-bridge/                  # serveur Java JSON-RPC (mutualise Node + .NET)
+|-- dotnet/
+|   |-- OculiX.sln
+|   |-- src/OculiX/
+|   |   |-- OculiX.csproj
+|   |   |-- Gateway.cs           # lance/pilote la JVM, JSON-RPC client
+|   |   |-- RemoteObject.cs      # handle opaque vers un objet Java
+|   |   |-- Screen.cs            # wraps org.sikuli.script.Screen
+|   |   |-- Region.cs            # wraps org.sikuli.script.Region
+|   |   |-- Pattern.cs           # wraps org.sikuli.script.Pattern
+|   |   |-- App.cs               # wraps org.sikuli.script.App
+|   |   |-- VNCScreen.cs         # wraps org.sikuli.vnc.VNCScreen
+|   |   |-- ADBScreen.cs         # wraps org.sikuli.android.ADBScreen
+|   |   |-- SSHTunnel.cs         # wraps com.sikulix.util.SSHTunnel
+|   |   |-- PaddleOCR.cs         # wraps com.sikulix.ocr.PaddleOCREngine
+|   |   |-- Key.cs
+|   |   |-- Match.cs
+|   |   +-- Settings.cs
+|   |-- tests/OculiX.Tests/
+|   +-- examples/
+|       |-- BasicExample/
+|       |-- NUnitExample/
+|       +-- SpecFlowExample/
 ```
 
 ## 5. Composants detailles

@@ -1,0 +1,44 @@
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+
+# Node
+node_modules/
+*.log
+npm-debug.log*
+.npm
+.next/
+.nuxt/
+
+# TypeScript
+*.tsbuildinfo
+
+# Java / Maven
+target/
+*.class
+.mvn/wrapper/maven-wrapper.jar
+dependency-reduced-pom.xml
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+# Local Oculix JAR cache (we download to user home anyway)
+.oculix/

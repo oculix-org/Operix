@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>OculiX</RootNamespace>
+    <AssemblyName>OculiX</AssemblyName>
+
+    <PackageId>OculiX</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>Julien Mer</Authors>
+    <Description>Visual automation for the real world — .NET wrapper for OculiX</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/oculix-org/Operix</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/oculix-org/Operix</RepositoryUrl>
+    <PackageTags>visual-testing;automation;ocr;sikuli;oculix;gui-testing;desktop-testing</PackageTags>
+  </PropertyGroup>
+
+</Project>

@@ -17,8 +17,7 @@
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <!-- Bump to 3.0.2 once published to Maven Central. -->
-        <oculix.version>3.0.1</oculix.version>
+        <oculix.version>3.0.2</oculix.version>
     </properties>
 
     <dependencies>
@@ -79,16 +78,6 @@
                                         <exclude>META-INF/LGPL2.1</exclude>
                                         <exclude>versionchanges.txt</exclude>
                                         <exclude>LICENSE</exclude>
-                                    </excludes>
-                                </filter>
-                                <filter>
-                                    <!-- oculixapi.jar embeds its own copy of the OpenCV
-                                         Java wrappers. Drop them so Apertix's copy wins —
-                                         Apertix is the canonical OpenCV dep with paired
-                                         natives (libopencv_java490.so / .dll / .dylib). -->
-                                    <artifact>io.github.oculix-org:oculixapi</artifact>
-                                    <excludes>
-                                        <exclude>org/opencv/**</exclude>
                                     </excludes>
                                 </filter>
                             </filters>

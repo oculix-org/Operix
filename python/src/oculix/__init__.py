@@ -17,8 +17,9 @@ __all__ = [
 
 # --- thin Pythonic wrappers around the most-used Oculix classes -------------
 #
-# Each class is a one-liner that delegates everything to the bridge. We keep
-# the names PEP-8 friendly (Click() not click()) on the Java side.
+# Each class is a one-liner that delegates everything to the bridge. Method
+# names track the Java side (camelCase) so users can cross-reference the
+# Sikuli/OculiX docs without translation.
 
 class _OculixClass:
     """Base for explicit class wrappers — gives autocomplete and type hints."""
@@ -31,24 +32,15 @@ class _OculixClass:
     def _call(self, method, *args):
         return self._remote._call(method, *args)
 
+    @classmethod
+    def _wrap(cls, remote: RemoteObject) -> "_OculixClass":
+        """Build an instance directly from an existing RemoteObject (no JVM ctor call)."""
+        instance = cls.__new__(cls)
+        instance._remote = remote
+        return instance
 
-class Screen(_OculixClass):
-    JAVA_CLASS = "org.sikuli.script.Screen"
 
-    def click(self, target):       return self._call("click", target)
-    def doubleClick(self, target): return self._call("doubleClick", target)
-    def rightClick(self, target):  return self._call("rightClick", target)
-    def hover(self, target):       return self._call("hover", target)
-    def type(self, text):          return self._call("type", text)
-    def paste(self, text):         return self._call("paste", text)
-    def wait(self, target, timeout=10.0): return self._call("wait", target, float(timeout))
-    def find(self, target):        return self._call("find", target)
-    def exists(self, target, timeout=3.0):
-        result = self._call("exists", target, float(timeout))
-        return result is not None
-    def text(self):                return self._call("text")
-    def capture(self):             return self._call("capture")
-
+# --- Region: geometry + mouse + keyboard + search ---------------------------
 
 class Region(_OculixClass):
     JAVA_CLASS = "org.sikuli.script.Region"
@@ -56,10 +48,85 @@ class Region(_OculixClass):
     def __init__(self, x: int, y: int, w: int, h: int):
         super().__init__(int(x), int(y), int(w), int(h))
 
-    def click(self, target):  return self._call("click", target)
-    def find(self, target):   return self._call("find", target)
-    def text(self):           return self._call("text")
+    # mouse
+    def click(self, target=None):       return self._call("click", target) if target else self._call("click")
+    def doubleClick(self, target=None): return self._call("doubleClick", target) if target else self._call("doubleClick")
+    def rightClick(self, target=None):  return self._call("rightClick", target) if target else self._call("rightClick")
+    def hover(self, target=None):       return self._call("hover", target) if target else self._call("hover")
+    def dragDrop(self, src, dst):       return self._call("dragDrop", src, dst)
+    def mouseMove(self, target=None):   return self._call("mouseMove", target) if target else self._call("mouseMove")
+    def mouseDown(self, button: int = 1): return self._call("mouseDown", int(button))
+    def mouseUp(self, button: int = 0):   return self._call("mouseUp", int(button))
 
+    # keyboard
+    def type(self, text):    return self._call("type", text)
+    def paste(self, text):   return self._call("paste", text)
+    def write(self, text):   return self._call("write", text)
+    def keyDown(self, keys): return self._call("keyDown", keys)
+    def keyUp(self, keys=None): return self._call("keyUp", keys) if keys is not None else self._call("keyUp")
+
+    # search
+    def find(self, target):  return self._call("find", target)
+    def findAll(self, target): return self._call("findAll", target)
+    def wait(self, target, timeout: float = 10.0): return self._call("wait", target, float(timeout))
+    def waitVanish(self, target, timeout: float = 10.0): return self._call("waitVanish", target, float(timeout))
+    def exists(self, target, timeout: float = 3.0):
+        return self._call("exists", target, float(timeout)) is not None
+    def getLastMatch(self): return self._call("getLastMatch")
+
+    # OCR
+    def text(self):      return self._call("text")
+    def textLines(self): return self._call("textLines")
+    def textWords(self): return self._call("textWords")
+
+    # geometry — getters
+    def getX(self): return self._call("getX")
+    def getY(self): return self._call("getY")
+    def getW(self): return self._call("getW")
+    def getH(self): return self._call("getH")
+
+    # geometry — setters / movement
+    def setX(self, x: int): return self._call("setX", int(x))
+    def setY(self, y: int): return self._call("setY", int(y))
+    def setW(self, w: int): return self._call("setW", int(w))
+    def setH(self, h: int): return self._call("setH", int(h))
+    def moveTo(self, x: int, y: int): return self._call("moveTo", int(x), int(y))
+    def setROI(self, x: int, y: int, w: int, h: int):
+        return self._call("setROI", int(x), int(y), int(w), int(h))
+
+    # spatial — return new regions
+    def nearby(self, range_px: int = 50): return self._call("nearby", int(range_px))
+    def above(self, range_px: int = 0):   return self._call("above", int(range_px)) if range_px else self._call("above")
+    def below(self, range_px: int = 0):   return self._call("below", int(range_px)) if range_px else self._call("below")
+    def left(self, range_px: int = 0):    return self._call("left", int(range_px)) if range_px else self._call("left")
+    def right(self, range_px: int = 0):   return self._call("right", int(range_px)) if range_px else self._call("right")
+
+    # misc
+    def highlight(self, secs: float = 2.0): return self._call("highlight", float(secs))
+    def contains(self, other):              return self._call("contains", other)
+    def capture(self):                      return self._call("capture")
+
+
+# --- Screen: a Region tied to a physical display ----------------------------
+
+class Screen(Region):
+    """Screen extends Region; every Region method is available."""
+    JAVA_CLASS = "org.sikuli.script.Screen"
+
+    def __init__(self, screen_id: int = 0):
+        # Skip Region.__init__ — Screen's ctor is (int) or ().
+        _OculixClass.__init__(self, int(screen_id))
+
+    @staticmethod
+    def getNumberScreens() -> int:
+        return default_bridge().call_static(Screen.JAVA_CLASS, "getNumberScreens", [])
+
+    @staticmethod
+    def getBounds(screen_id: int = 0):
+        return default_bridge().call_static(Screen.JAVA_CLASS, "getBounds", [int(screen_id)])
+
+
+# --- Pattern ----------------------------------------------------------------
 
 class Pattern(_OculixClass):
     JAVA_CLASS = "org.sikuli.script.Pattern"
@@ -75,9 +142,21 @@ class Pattern(_OculixClass):
         self._call("targetOffset", int(x), int(y)); return self
 
 
-class Match(_OculixClass):
+# --- Match: a Region augmented with a similarity score ----------------------
+
+class Match(Region):
     JAVA_CLASS = "org.sikuli.script.Match"
 
+    def __init__(self):
+        # Match objects are returned by find/wait/exists — never built directly.
+        raise TypeError("Match cannot be instantiated; obtain one via find/wait/exists.")
+
+    def getScore(self):  return self._call("getScore")
+    def getTarget(self): return self._call("getTarget")
+    def getIndex(self):  return self._call("getIndex")
+
+
+# --- App --------------------------------------------------------------------
 
 class App(_OculixClass):
     JAVA_CLASS = "org.sikuli.script.App"
@@ -88,27 +167,29 @@ class App(_OculixClass):
     @staticmethod
     def open(path: str) -> "App":
         result = default_bridge().call_static(App.JAVA_CLASS, "open", [path])
-        wrapped = App.__new__(App)
-        wrapped._remote = result
-        return wrapped
+        return App._wrap(result)
 
-    def focus(self): return self._call("focus")
-    def close(self): return self._call("close")
-    def window(self): return self._call("window")
+    def focus(self):     return self._call("focus")
+    def close(self):     return self._call("close")
+    def window(self):    return self._call("window")
+    def isRunning(self): return self._call("isRunning")
+    def hasWindow(self): return self._call("hasWindow")
+    def getName(self):   return self._call("getName")
+    def getPID(self):    return self._call("getPID")
 
+
+# --- VNC, ADB, SSH ----------------------------------------------------------
 
 class VNCScreen(_OculixClass):
     JAVA_CLASS = "org.sikuli.vnc.VNCScreen"
 
     @staticmethod
-    def start(host: str, port: int, password: str, width: int, height: int):
+    def start(host: str, port: int, password: str, width: int, height: int) -> "VNCScreen":
         result = default_bridge().call_static(
             VNCScreen.JAVA_CLASS, "start",
             [host, int(port), password, int(width), int(height)],
         )
-        wrapped = VNCScreen.__new__(VNCScreen)
-        wrapped._remote = result
-        return wrapped
+        return VNCScreen._wrap(result)
 
     def click(self, target): return self._call("click", target)
     def type(self, text):    return self._call("type", text)
@@ -120,15 +201,17 @@ class ADBScreen(_OculixClass):
     JAVA_CLASS = "org.sikuli.android.ADBScreen"
 
     @staticmethod
-    def start(adb_path: str = ""):
+    def start(adb_path: str = "") -> "ADBScreen":
         args = [adb_path] if adb_path else []
         result = default_bridge().call_static(ADBScreen.JAVA_CLASS, "start", args)
-        wrapped = ADBScreen.__new__(ADBScreen)
-        wrapped._remote = result
-        return wrapped
+        return ADBScreen._wrap(result)
 
     def click(self, target): return self._call("click", target)
     def type(self, text):    return self._call("type", text)
+    def tap(self, x: int, y: int): return self._call("tap", int(x), int(y))
+    def swipe(self, x1: int, y1: int, x2: int, y2: int):
+        return self._call("swipe", int(x1), int(y1), int(x2), int(y2))
+    def wakeUp(self, secs: int = 1): return self._call("wakeUp", int(secs))
 
 
 class SSHTunnel(_OculixClass):
@@ -144,22 +227,35 @@ class SSHTunnel(_OculixClass):
     def close(self): return self._call("close")
 
 
+# --- OCR engines ------------------------------------------------------------
+
 class PaddleOCREngine(_OculixClass):
     """OculiX's neural OCR engine — ``com.sikulix.ocr.PaddleOCREngine``."""
     JAVA_CLASS = "com.sikulix.ocr.PaddleOCREngine"
 
     @staticmethod
-    def getInstance():
+    def getInstance() -> "PaddleOCREngine":
         result = default_bridge().call_static(PaddleOCREngine.JAVA_CLASS, "getInstance", [])
-        wrapped = PaddleOCREngine.__new__(PaddleOCREngine)
-        wrapped._remote = result
-        return wrapped
+        return PaddleOCREngine._wrap(result)
 
 
-class OCR(_OculixClass):
-    """Tesseract-based OCR (``org.sikuli.script.OCR``)."""
+class OCR:
+    """Tesseract-based OCR (``org.sikuli.script.OCR``) — fully static."""
     JAVA_CLASS = "org.sikuli.script.OCR"
 
+    @staticmethod
+    def readText(target):  return default_bridge().call_static(OCR.JAVA_CLASS, "readText", [target])
+    @staticmethod
+    def readLine(target):  return default_bridge().call_static(OCR.JAVA_CLASS, "readLine", [target])
+    @staticmethod
+    def readWord(target):  return default_bridge().call_static(OCR.JAVA_CLASS, "readWord", [target])
+    @staticmethod
+    def readLines(target): return default_bridge().call_static(OCR.JAVA_CLASS, "readLines", [target])
+    @staticmethod
+    def readWords(target): return default_bridge().call_static(OCR.JAVA_CLASS, "readWords", [target])
+
+
+# --- static-fields proxy (Key, Settings) ------------------------------------
 
 class _StaticConstants:
     """Lazy proxy that forwards attribute lookups to a Java class's static fields."""

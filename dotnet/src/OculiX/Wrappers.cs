@@ -52,11 +52,11 @@ public class Region : OculixClass
     public Task KeyDown(string keys)     => Call("keyDown", keys);
     public Task KeyUp(string? keys = null) => keys is null ? Call("keyUp") : Call("keyUp", keys);
 
-    // search
-    public Task Find(string target)     => Call("find", target);
-    public Task FindAll(string target)  => Call("findAll", target);
-    public Task Wait(string target, double timeout = 10) => Call("wait", target, timeout);
-    public Task WaitVanish(string target, double timeout = 10) => Call("waitVanish", target, timeout);
+    // search — all return a Java object (Match / Iterator<Match>) wrapped as RemoteObject
+    public Task<object?> Find(string target)     => Call("find", target);
+    public Task<object?> FindAll(string target)  => Call("findAll", target);
+    public Task<object?> Wait(string target, double timeout = 10) => Call("wait", target, timeout);
+    public Task<object?> WaitVanish(string target, double timeout = 10) => Call("waitVanish", target, timeout);
     public async Task<bool> Exists(string target, double timeout = 3)
         => (await Call("exists", target, timeout)) != null;
     public Task<object?> GetLastMatch() => Call("getLastMatch");
@@ -88,9 +88,9 @@ public class Region : OculixClass
     public Task<object?> Right(int rangePx = 0)   => rangePx == 0 ? Call("right") : Call("right", rangePx);
 
     // misc
-    public Task Highlight(double secs = 2)    => Call("highlight", secs);
+    public Task Highlight(double secs = 2)      => Call("highlight", secs);
     public Task<object?> Contains(object other) => Call("contains", other);
-    public Task Capture()                     => Call("capture");
+    public Task<object?> Capture()              => Call("capture");
 }
 
 // --- Screen ----------------------------------------------------------------

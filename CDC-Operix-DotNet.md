@@ -6,7 +6,7 @@
 **Statut :** A implementer
 **Repo cible :** oculix-org/operix-dotnet
 **NuGet :** OculiX
-**Dependance :** `io.github.oculix-org:oculixapi:3.0.2` (Maven Central) converti via IKVM
+**Dependance :** `io.github.oculix-org:oculixapi:3.0.3` (Maven Central) converti via IKVM
 **Prerequis :** .NET 8+, Java 11+ bytecode (cible d'oculixapi)
 
 ---
@@ -49,7 +49,7 @@ stdin/stdout.
 +---------------------+          +---------------------------+
 |   .NET process      |  spawn   |   JVM process             |
 |                     | stdin/   |                           |
-|   var s = new       |<-------->|   oculixapi-3.0.2.jar     |
+|   var s = new       |<-------->|   oculixapi-3.0.3.jar     |
 |   Screen();         | stdout   |   + operix-jvm-bridge.jar |
 |   s.Click("x.png")  | JSON-RPC |   (org.operix.rpc.Server) |
 +---------------------+          +---------------------------+
@@ -489,8 +489,8 @@ vnc.Stop();
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="IKVM" Version="8.9.2" />
-    <!-- IKVM downloads oculixapi-3.0.2.jar from Maven Central at build time -->
-    <MavenReference Include="io.github.oculix-org:oculixapi" Version="3.0.2" />
+    <!-- IKVM downloads oculixapi-3.0.3.jar from Maven Central at build time -->
+    <MavenReference Include="io.github.oculix-org:oculixapi" Version="3.0.3" />
   </ItemGroup>
 </Project>
 ```
@@ -499,7 +499,7 @@ vnc.Stop();
 
 ```bash
 # Conversion manuelle pour debug
-ikvmc -target:library -out:OculiX.Core.dll oculixapi-3.0.2.jar
+ikvmc -target:library -out:OculiX.Core.dll oculixapi-3.0.3.jar
 
 # Production : le .csproj reference IKVM + MavenReference
 # (IKVM 8.9.2+ resout la dependance Maven et convertit automatiquement

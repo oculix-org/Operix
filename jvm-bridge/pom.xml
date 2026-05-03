@@ -17,8 +17,7 @@
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <!-- Bump to 3.0.2 once published to Maven Central. -->
-        <oculix.version>3.0.1</oculix.version>
+        <oculix.version>3.0.3</oculix.version>
     </properties>
 
     <dependencies>

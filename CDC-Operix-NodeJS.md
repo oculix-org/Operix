@@ -6,7 +6,7 @@
 **Statut :** A implementer
 **Repo cible :** oculix-org/operix-js
 **npm :** oculix
-**Dependance :** `io.github.oculix-org:oculixapi:3.0.2` (Maven Central)
+**Dependance :** `io.github.oculix-org:oculixapi:3.0.3` (Maven Central)
 **Prerequis :** Java 11+ (Eclipse Temurin / Azul Zulu recommandes), Node.js 18+
 
 ---
@@ -42,7 +42,7 @@ const app = await App.open("notepad");
 +---------------------+              +---------------------------+
 |   Node.js process   |   spawn      |   JVM process             |
 |                     |   stdin/out  |                           |
-|   const screen =    |<------------>|   oculixapi-3.0.2.jar     |
+|   const screen =    |<------------>|   oculixapi-3.0.3.jar     |
 |   new Screen()      |   JSON-RPC   |   + operix-rpc-server.jar |
 |                     |              |   (org.operix.rpc.Server) |
 +---------------------+              +---------------------------+
@@ -109,8 +109,8 @@ import * as fs from 'fs';
 import * as https from 'https';
 
 const JAR_DIR = path.join(require('os').homedir(), '.oculix', 'lib');
-const OCULIX_JAR_NAME = 'oculixapi-3.0.2.jar';
-const OCULIX_JAR_URL = 'https://repo1.maven.org/maven2/io/github/oculix-org/oculixapi/3.0.2/oculixapi-3.0.2.jar';
+const OCULIX_JAR_NAME = 'oculixapi-3.0.3.jar';
+const OCULIX_JAR_URL = 'https://repo1.maven.org/maven2/io/github/oculix-org/oculixapi/3.0.3/oculixapi-3.0.3.jar';
 // shipped inside the npm package (compiled at npm publish time)
 const RPC_JAR_PATH = path.join(__dirname, '..', 'java-bin', 'operix-rpc-server.jar');
 

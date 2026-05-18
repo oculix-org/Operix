@@ -1,20 +1,14 @@
 name: Release jvm-bridge
 
-# Manual trigger only. Provide the version, must match jvm-bridge/pom.xml.
-# Bump the BridgeVersion constants in:
-#   - jvm-bridge/pom.xml:<version>
+# Manual trigger only. The version is read straight from jvm-bridge/pom.xml,
+# so the only thing to do before clicking "Run workflow" is to bump the
+# version constants so they all match jvm-bridge/pom.xml:<version>:
 #   - python/src/oculix/_bridge.py:BRIDGE_VERSION
 #   - nodejs/src/bridge.ts:BRIDGE_VERSION
 #   - dotnet/src/OculiX/Bridge.cs:BridgeVersion
-# before triggering this workflow.
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Bridge version (X.Y.Z, no v prefix). Must match pom.xml.'
-        required: true
-        type: string
 
 permissions:
   contents: write   # create the GitHub Release + tag
@@ -30,14 +24,13 @@ jobs:
           java-version: '17'
           cache: maven
 
-      - name: Verify pom.xml version matches the input
+      - name: Read bridge version from pom.xml
+        id: pom
         working-directory: jvm-bridge
         run: |
-          POM_VERSION="$(mvn -B -q help:evaluate -Dexpression=project.version -DforceStdout)"
-          if [ "$POM_VERSION" != "${{ inputs.version }}" ]; then
-            echo "::error::pom.xml version ($POM_VERSION) does not match input (${{ inputs.version }})"
-            exit 1
-          fi
+          VERSION="$(mvn -B -q help:evaluate -Dexpression=project.version -DforceStdout)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Bridge version: $VERSION"
 
       - name: Test
         working-directory: jvm-bridge
@@ -50,16 +43,16 @@ jobs:
       - name: Rename artifact with version suffix
         run: |
           mv jvm-bridge/target/operix-jvm-bridge.jar \
-             jvm-bridge/target/operix-jvm-bridge-${{ inputs.version }}.jar
+             jvm-bridge/target/operix-jvm-bridge-${{ steps.pom.outputs.version }}.jar
 
       - name: Create GitHub Release with the fat JAR attached
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: jvm-bridge-v${{ inputs.version }}
-          name: jvm-bridge ${{ inputs.version }}
+          tag_name: jvm-bridge-${{ steps.pom.outputs.version }}
+          name: jvm-bridge ${{ steps.pom.outputs.version }}
           body: |
             OculiX JVM bridge (fat JAR) for the Python / Node.js / .NET wrappers.
 
             Includes oculixapi + Apertix OpenCV + JSON-RPC server.
             Wrappers download this artifact on first use.
-          files: jvm-bridge/target/operix-jvm-bridge-${{ inputs.version }}.jar
+          files: jvm-bridge/target/operix-jvm-bridge-${{ steps.pom.outputs.version }}.jar

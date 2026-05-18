@@ -61,48 +61,43 @@ under SOX / HIPAA / RGPD / NIS2 / DORA).
    as `releases/download/jvm-bridge-X.Y.Z/...` (without `v`). First real
    release will 404 the JAR. Pick one form, align the four locations
    (workflow + 3 wrapper constants).
-2. **Align the OculiX dependency version** — `jvm-bridge/pom.xml` references
-   `oculixapi:3.0.3`, but only `3.0.1` and `3.0.2` are on Maven Central
-   today. `3.0.3-rc1` exists as a tag on `oculix-org/Oculix`, GA pending.
-   Action: rollback to `3.0.1` or `3.0.3-rc1` (whichever is on Central) until
-   GA `3.0.3` ships, then bump.
-3. **Wait for the Legerix integration to land in OculiX `master`** — branch
+2. **Wait for the Legerix integration to land in OculiX `master`** — branch
    `claude/update-pom-version-bxgIc` adds `io.github.oculix-org:legerix:5.5.0-4`
    which bundles Tesseract+Leptonica natives and tessdata for 5 languages
    (eng, fra, spa, chi_sim, hin). Once merged + released, Operix wrappers
    gain zero-config OCR everywhere automatically. Then add a thin wrapper
    over the new `OCR.Options` builder API in all 3 languages.
-4. **Define the shared Gherkin verb spec** — one YAML per locale
+3. **Define the shared Gherkin verb spec** — one YAML per locale
    (`vocab/verbes_fr.yml`, `vocab/verbes_en.yml`, ...), about 15 verbs in V1.
    Each entry maps a regex to a wrapper method name and an arg extraction
    plan. This file is the contract: all three runners load it. Drift between
    languages is forbidden.
-5. **Build the Gherkin runner — Python first** under `gherkin-runner/python/`.
+4. **Build the Gherkin runner — Python first** under `gherkin-runner/python/`.
    Strict DSL (V1): if a step does not match a vocab entry, fail with a
    helpful message including the closest verb (Levenshtein). No NLP, no LLM.
    Wire it to the MCP transport for the audit story; allow falling back to
    the JVM bridge for local dev.
-6. **Demonstrate end-to-end** — a single `.feature` file driving a real
+5. **Demonstrate end-to-end** — a single `.feature` file driving a real
    desktop, executed via the Python runner against the local MCP server,
    with the resulting signed audit journal verified by `JournalVerifier`.
    This is the demo to put on the README and in the launch material.
-7. **Clone the runner to Node and .NET** — mechanical once the vocab spec
+6. **Clone the runner to Node and .NET** — mechanical once the vocab spec
    and the Python runner are stable. Maintain a CI job that asserts the
    three runners produce the same audit trail entries for the same
    `.feature` file.
-8. **Bi-transport in the wrappers** — refactor the per-language `Bridge`
+7. **Bi-transport in the wrappers** — refactor the per-language `Bridge`
    into an abstraction with two implementations: `JvmBridge` (current,
    stdio JSON-RPC) and `McpBridge` (HTTP+TLS+Bearer, talks to
    `oculix-mcp-server`). User-facing API unchanged; only the constructor
    differs. This is what unlocks the regulated-environment story.
-9. **i18n of the verb vocab** — start with FR + EN, open the door to ES /
+8. **i18n of the verb vocab** — start with FR + EN, open the door to ES /
    AR / DE / ZH on demand. The `# language: xx` directive at the top of
    each `.feature` selects the locale.
-10. **Marketing artefacts** — a 30-second demo GIF (`pip install` to a
-    passing test), a landing page that frames the three audiences (dev,
-    QA, compliance officer) with one tagline each, and presence on the
-    Reddit / dev.to / StackOverflow channels where the existing
-    Sikuli/Ranorex/PyAutoGUI questions live.
+9. **Marketing artefacts** — a 30-second demo GIF (`pip install` to a
+   passing test), a landing page that frames the three audiences (dev,
+   QA, compliance officer) with one tagline each, and presence on the
+   Reddit / dev.to / StackOverflow channels where the existing
+   Sikuli/Ranorex/PyAutoGUI questions live.
 
 ## Operating rules for Claude in this repo
 

@@ -6,7 +6,7 @@
 **Statut :** A implementer
 **Repo cible :** oculix-org/operix-python
 **PyPI :** oculix
-**Dependance :** `io.github.oculix-org:oculixapi:3.0.2` (Maven Central)
+**Dependance :** `io.github.oculix-org:oculixapi:3.0.3` (Maven Central)
 **Prerequis :** Java 11+ (Eclipse Temurin / Azul Zulu recommandes)
 
 ---
@@ -55,7 +55,7 @@ est utilise tel quel sans modification.
 
 1. Au premier `import oculix`, le package :
    - Verifie si Java est installe (`java -version`)
-   - Verifie si `oculixapi-3.0.2.jar` est present dans `~/.oculix/lib/`
+   - Verifie si `oculixapi-3.0.3.jar` est present dans `~/.oculix/lib/`
    - Si absent, le telecharge depuis Maven Central
    - Localise le `py4jX.Y.jar` embarque par le package Python `py4j`
    - Demarre une JVM avec les deux JAR sur le classpath et lance
@@ -114,8 +114,8 @@ _gateway = None
 _port = None
 
 JAR_DIR = os.path.expanduser("~/.oculix/lib")
-JAR_NAME = "oculixapi-3.0.2.jar"
-JAR_URL = "https://repo1.maven.org/maven2/io/github/oculix-org/oculixapi/3.0.2/oculixapi-3.0.2.jar"
+JAR_NAME = "oculixapi-3.0.3.jar"
+JAR_URL = "https://repo1.maven.org/maven2/io/github/oculix-org/oculixapi/3.0.3/oculixapi-3.0.3.jar"
 
 def _ensure_jar():
     jar_path = os.path.join(JAR_DIR, JAR_NAME)
@@ -199,7 +199,7 @@ def __getattr__(name):
 L'architecture s'appuie uniquement sur :
 - `py4j.GatewayServer` (livre par le package PyPI `py4j`, lance via
   `py4j.java_gateway.launch_gateway()`)
-- `oculixapi.jar` 3.0.2 utilise tel quel depuis Maven Central
+- `oculixapi.jar` 3.0.3 utilise tel quel depuis Maven Central
 
 `Commons.loadOpenCV()` est appele cote Python apres connexion au gateway,
 donc aucune modification d'Oculix n'est necessaire.

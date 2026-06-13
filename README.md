@@ -27,7 +27,7 @@ Operix/
 ## Runtime dependencies
 
 - **Java 11+** (Eclipse Temurin or Azul Zulu recommended) — OculiX targets Java 17 bytecode
-- `io.github.oculix-org:oculixapi:3.0.3` auto-downloaded from Maven Central on first use
+- `io.github.oculix-org:oculixapi:3.0.4` auto-downloaded from Maven Central on first use
 - Apertix OpenCV 4.10.0 (transitive, bundled natives for Windows/macOS/Linux x86_64)
 
 ## Quickstart

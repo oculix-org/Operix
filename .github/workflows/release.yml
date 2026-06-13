@@ -1,0 +1,69 @@
+name: Release (orchestrator)
+
+# The ONLY entry point for releasing the OculiX wrappers. The sub-workflows
+# (release-jvm-bridge / release-python) are workflow_call-only and CANNOT be
+# dispatched on their own — so the fat JAR is ALWAYS released before PyPI.
+#
+# Flow: read the bridge version from jvm-bridge/pom.xml, skip everything if that
+# GitHub Release already exists (idempotent — re-running the orchestrator is a
+# no-op, no duplicate publish), otherwise run in order:  jar -> pypi.
+#
+# Adding nodejs / dotnet later: drop a sibling job after `jar`, mirroring `pypi`.
+# (A matrix can't pick the workflow file — GitHub forbids expressions in `uses:`
+# — so each wrapper is its own job.)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write   # sub-workflows create the GitHub Release + git tags
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      proceed: ${{ steps.check.outputs.proceed }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Read bridge version from pom.xml
+        id: v
+        working-directory: jvm-bridge
+        run: |
+          VERSION="$(mvn -B -q help:evaluate -Dexpression=project.version -DforceStdout)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Bridge version: $VERSION"
+
+      - name: Skip if the GitHub Release already exists (idempotent)
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="jvm-bridge-${{ steps.v.outputs.version }}"
+          if gh release view "$TAG" -R "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "::notice::Release $TAG already exists — skipping jar + pypi"
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::No existing $TAG release — proceeding"
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  jar:
+    needs: guard
+    if: needs.guard.outputs.proceed == 'true'
+    uses: ./.github/workflows/release-jvm-bridge.yml
+    secrets: inherit
+
+  pypi:
+    needs: [guard, jar]
+    if: needs.guard.outputs.proceed == 'true'
+    uses: ./.github/workflows/release-python.yml
+    with:
+      version: ${{ needs.guard.outputs.version }}
+    secrets: inherit

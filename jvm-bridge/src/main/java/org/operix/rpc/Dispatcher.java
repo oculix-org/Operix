@@ -41,7 +41,19 @@ final class Dispatcher {
             // Instance method call
             Object target = registry.get(req.getString("ref"));
             Method m = findMethod(target.getClass(), methodName, args.length, args);
-            result = m.invoke(target, coerce(m, args));
+            if (target instanceof java.lang.reflect.Field
+                    && "set".equals(methodName) && args.length == 2) {
+                // Field.set(obj, value): its (Object, Object) signature hides the
+                // field's real type, so coerce(m, args) can't widen the value and
+                // the JDK's strict Field.set rejects e.g. a Double for a float field
+                // (Settings.MoveMouseDelay / WaitScanRate / ObserveScanRate). Coerce
+                // against the field's ACTUAL type instead.
+                java.lang.reflect.Field f = (java.lang.reflect.Field) target;
+                args[1] = coerceOne(f.getType(), args[1]);
+                result = m.invoke(target, args);
+            } else {
+                result = m.invoke(target, coerce(m, args));
+            }
         } else if (req.has("class")) {
             String className = req.getString("class");
             Class<?> klass = Class.forName(className);

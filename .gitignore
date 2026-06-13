@@ -42,3 +42,6 @@ obj/
 
 # Local Oculix JAR cache (we download to user home anyway)
 .oculix/
+
+# Local Claude Code agent config
+.claude/

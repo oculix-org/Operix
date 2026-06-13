@@ -69,13 +69,23 @@ class Bridge:
         if self._proc is not None:
             return
         self._proc = subprocess.Popen(
-            [self._java, "-jar", str(self._jar)],
+            # Force the JVM to speak UTF-8 on stdio. On Windows the JVM defaults
+            # System.out to the console code page (cp1252), so any accented OCR
+            # text (é -> 0xe9) is invalid UTF-8 and crashes the reader below.
+            # -Dstdout/stderr.encoding (Java 18+) pin the console streams; the
+            # file.encoding flag covers older JVMs.
+            [self._java,
+             "-Dfile.encoding=UTF-8",
+             "-Dstdout.encoding=UTF-8",
+             "-Dstderr.encoding=UTF-8",
+             "-jar", str(self._jar)],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             bufsize=1,           # line buffered
             text=True,
             encoding="utf-8",
+            errors="replace",    # belt-and-suspenders: never crash on a stray byte
         )
         atexit.register(self.stop)
 

@@ -275,6 +275,19 @@ class _StaticConstants:
         self._cache[name] = value
         return value
 
+    def __setattr__(self, name: str, value):
+        # Internal attrs (_java_class, _cache) stay Python-side.
+        if name.startswith("_"):
+            object.__setattr__(self, name, value)
+            return
+        # Public name -> WRITE the Java static field via reflection.
+        # e.g. Settings.MoveMouseDelay = 0.0 actually pokes org.sikuli.basics.Settings.
+        bridge = default_bridge()
+        cls_obj = bridge.call_static("java.lang.Class", "forName", [self._java_class])
+        field = bridge.call(cls_obj._ref, "getField", [name])
+        bridge.call(field._ref, "set", [None, value])
+        self._cache.pop(name, None)   # drop any stale cached read
+
 
 Key = _StaticConstants("org.sikuli.script.Key")
 Settings = _StaticConstants("org.sikuli.basics.Settings")

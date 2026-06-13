@@ -1,14 +1,11 @@
 name: Release Python (PyPI)
 
-# Manual trigger only.
-# Setup options (pick one):
-#   A) PyPI Trusted Publisher (recommended): no secret, OIDC. Configure on PyPI:
-#      https://pypi.org/manage/account/publishing/
-#   B) PyPI API token: add the PYPI_API_TOKEN repo secret and uncomment the
-#      `password:` line at the bottom of this workflow.
+# Reusable workflow — called only by release.yml (the orchestrator), never
+# dispatched on its own (guarantees the JAR is released before PyPI).
+# Auth: PyPI API token via the PYPI_API_TOKEN repo secret (passed by secrets: inherit).
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       version:
         description: 'Package version (X.Y.Z). Must match python/pyproject.toml.'
@@ -17,7 +14,6 @@ on:
 
 permissions:
   contents: write   # create the git tag at the end
-  id-token: write   # OIDC for PyPI Trusted Publisher
 
 jobs:
   publish:
@@ -46,7 +42,7 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: python/dist
-          # password: ${{ secrets.PYPI_API_TOKEN }}   # uncomment for API-token mode
+          password: ${{ secrets.PYPI_API_TOKEN }}
 
       - name: Create git tag
         run: |

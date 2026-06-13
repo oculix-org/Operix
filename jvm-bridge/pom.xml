@@ -17,7 +17,7 @@
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <oculix.version>3.0.3</oculix.version>
+        <oculix.version>3.0.4</oculix.version>
     </properties>
 
     <dependencies>
@@ -40,7 +40,7 @@
     </dependencies>
 
     <build>
-        <finalName>operix-jvm-bridge</finalName>
+        <finalName>operix-jvm-bridge-${project.version}</finalName>
         <plugins>
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>

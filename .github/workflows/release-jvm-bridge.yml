@@ -1,14 +1,15 @@
 name: Release jvm-bridge
 
-# Manual trigger only. The version is read straight from jvm-bridge/pom.xml,
-# so the only thing to do before clicking "Run workflow" is to bump the
-# version constants so they all match jvm-bridge/pom.xml:<version>:
+# Reusable workflow — called only by release.yml (the orchestrator), never
+# dispatched on its own. The version is read straight from jvm-bridge/pom.xml.
+# Before releasing, bump the version constants so they all match
+# jvm-bridge/pom.xml:<version>:
 #   - python/src/oculix/_bridge.py:BRIDGE_VERSION
 #   - nodejs/src/bridge.ts:BRIDGE_VERSION
 #   - dotnet/src/OculiX/Bridge.cs:BridgeVersion
 
 on:
-  workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: write   # create the GitHub Release + tag
@@ -38,12 +39,9 @@ jobs:
 
       - name: Package
         working-directory: jvm-bridge
+        # pom.xml <finalName> is operix-jvm-bridge-${project.version}, so package
+        # already emits target/operix-jvm-bridge-<version>.jar — no rename needed.
         run: mvn -B package -DskipTests
-
-      - name: Rename artifact with version suffix
-        run: |
-          mv jvm-bridge/target/operix-jvm-bridge.jar \
-             jvm-bridge/target/operix-jvm-bridge-${{ steps.pom.outputs.version }}.jar
 
       - name: Create GitHub Release with the fat JAR attached
         uses: softprops/action-gh-release@v2

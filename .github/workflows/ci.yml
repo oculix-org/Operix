@@ -23,7 +23,7 @@ jobs:
         working-directory: jvm-bridge
         run: mvn -B package -DskipTests
       - name: Upload JAR artifact (used by other jobs)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: operix-jvm-bridge-jar
           path: jvm-bridge/target/operix-jvm-bridge.jar

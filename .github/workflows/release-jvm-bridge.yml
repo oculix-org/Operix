@@ -44,7 +44,7 @@ jobs:
         run: mvn -B package -DskipTests
 
       - name: Create GitHub Release with the fat JAR attached
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: jvm-bridge-${{ steps.pom.outputs.version }}
           name: jvm-bridge ${{ steps.pom.outputs.version }}

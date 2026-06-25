@@ -26,7 +26,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: operix-jvm-bridge-jar
-          path: jvm-bridge/target/operix-jvm-bridge.jar
+          path: jvm-bridge/target/operix-jvm-bridge-*.jar
           retention-days: 1
 
   python:

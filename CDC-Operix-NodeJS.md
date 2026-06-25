@@ -1,28 +1,23 @@
 # CDC — Operix-JS (Node.js)
-## Node.js wrapper for OculiX via java-caller
+## Node.js wrapper for OculiX via JSON-RPC bridge
 
-**Auteur :** Julien Mer — JMer Consulting
-**Date :** 19 avril 2026
-**Statut :** A implementer
-**Repo cible :** oculix-org/operix-js
-**npm :** oculix
-**Dependance :** `io.github.oculix-org:oculixapi:3.0.3` (Maven Central)
-**Prerequis :** Java 11+ (Eclipse Temurin / Azul Zulu recommandes), Node.js 18+
+**Author:** Julien Mer — JMer Consulting
+**Date:** 25 June 2026
+**Status:** Scaffolded — looking for a JS/TS maintainer
+**Target repo:** oculix-org/Operix (subfolder `nodejs/`)
+**npm package:** `oculix`
+**Dependency:** `io.github.oculix-org:oculixapi:3.0.4` (Maven Central)
+**Prerequisites:** Java 17+ (Eclipse Temurin / Azul Zulu recommended), Node.js 20+
 
 ---
 
-## 1. Probleme
+## 1. Problem
 
-Node.js est l'ecosysteme dominant pour le testing web (Playwright, Cypress, Jest, Mocha).
-Mais aucun de ces outils ne fait du visual testing sur desktop, VNC, Android, kiosque, POS.
-Playwright est browser-only. Cypress est browser-only. Pour tester une app native Windows,
-un terminal VNC, un mainframe — le dev Node n'a rien.
+Node.js is the dominant ecosystem for web testing (Playwright, Cypress, Jest, Mocha). But none of these tools handle visual testing on desktop, VNC, Android, kiosks, or POS systems. Playwright is browser-only. Cypress is browser-only. To test a native Windows app, a VNC terminal, or a mainframe — Node developers have nothing.
 
 ## 2. Solution
 
-Un package npm `oculix` qui expose toute l'API OculiX en JavaScript/TypeScript via
-un pont Java. L'utilisateur tape `npm install oculix` et combine visual testing natif
-avec ses outils Node existants.
+An npm package `oculix` that exposes the full OculiX API in JavaScript/TypeScript via a Java bridge. The user runs `npm install oculix` and combines native visual testing with their existing Node tools.
 
 ```bash
 npm install oculix
@@ -42,52 +37,40 @@ const app = await App.open("notepad");
 +---------------------+              +---------------------------+
 |   Node.js process   |   spawn      |   JVM process             |
 |                     |   stdin/out  |                           |
-|   const screen =    |<------------>|   oculixapi-3.0.3.jar     |
+|   const screen =    |<------------>|   oculixapi-3.0.4.jar     |
 |   new Screen()      |   JSON-RPC   |   + operix-rpc-server.jar |
 |                     |              |   (org.operix.rpc.Server) |
 +---------------------+              +---------------------------+
 ```
 
-**Pont Java pour Node.js :** un mini-serveur JSON-RPC custom (`org.operix.rpc.Server`)
-ecrit dans CE repo (`operix-js`), compile en `operix-rpc-server.jar` et bundle
-dans le package npm. La JVM est lancee en child process avec
-`oculixapi.jar + operix-rpc-server.jar` sur le classpath et communique en
-JSON-RPC ligne par ligne via stdin/stdout. Aucune modification du repo Oculix.
+**Java bridge for Node.js:** a small custom JSON-RPC server (`org.operix.rpc.Server`) written in THIS repo (`Operix/jvm-bridge`), compiled into `operix-rpc-server.jar` and bundled inside the npm package. The JVM is launched as a child process with `oculixapi.jar + operix-rpc-server.jar` on the classpath and communicates line-by-line in JSON-RPC over stdin/stdout. No modification to the OculiX core repo required.
 
-**Pourquoi pas une lib existante ?**
-- `java-caller` lance la JVM par appel = latence inacceptable (3s par click).
-- `node-java-bridge` (JNI) = plus rapide mais build cross-platform penible et
-  natifs OpenCV (Apertix) deja presents dans le JAR rendent le mix JNI risque.
-- `py4j` n'a pas de client Node officiel.
+**Why not an existing library?**
+- `java-caller` spawns the JVM per call → unacceptable latency (3s per click).
+- `node-java-bridge` (JNI) → faster, but cross-platform builds are painful, and the OpenCV natives from Apertix already shipped in the JAR make a JNI mix risky.
+- `py4j` has no official Node client.
 
-Donc V1 = JSON-RPC custom (~150 lignes de Java). Migration vers
-`node-java-bridge` envisageable en V2 si le besoin se confirme.
+So V1 = custom JSON-RPC (~150 lines of Java). Migration to `node-java-bridge` is possible in V2 if the demand justifies it.
 
-## 4. Structure du repo
+## 4. Repo structure
 
 ```
-oculix-org/operix-js/
+oculix-org/Operix/nodejs/
 |-- README.md
 |-- LICENSE (MIT)
 |-- package.json
 |-- tsconfig.json
 |-- src/
-|   |-- index.ts              # exports principaux
+|   |-- index.ts              # main exports
 |   |-- gateway.ts            # JVM lifecycle (start/stop/download JAR)
-|   |-- screen.ts             # wrapper Screen
-|   |-- region.ts             # wrapper Region
-|   |-- pattern.ts            # wrapper Pattern
-|   |-- app.ts                # wrapper App
-|   |-- vnc.ts                # wrapper VNCScreen, SSHTunnel
-|   |-- adb.ts                # wrapper ADBScreen
-|   |-- ocr.ts                # wrapper OCR
-|   +-- keys.ts               # constantes Key, KeyModifier
-|-- java/
-|   |-- pom.xml                   # build du mini JAR JSON-RPC (depend d'oculixapi)
-|   +-- src/main/java/org/operix/rpc/
-|       |-- Server.java           # boucle JSON-RPC stdin/stdout
-|       |-- Dispatcher.java       # routage class/method via reflection
-|       +-- ObjectRegistry.java   # mapping id -> objet Java vivant
+|   |-- screen.ts             # Screen wrapper
+|   |-- region.ts             # Region wrapper
+|   |-- pattern.ts            # Pattern wrapper
+|   |-- app.ts                # App wrapper
+|   |-- vnc.ts                # VNCScreen, SSHTunnel wrappers
+|   |-- adb.ts                # ADBScreen wrapper
+|   |-- ocr.ts                # OCR wrapper
+|   +-- keys.ts               # Key, KeyModifier constants
 |-- tests/
 |   |-- gateway.test.ts
 |   |-- screen.test.ts
@@ -98,7 +81,9 @@ oculix-org/operix-js/
     +-- with-playwright.ts
 ```
 
-## 5. Composants detailles
+The JSON-RPC Java server lives next door in `oculix-org/Operix/jvm-bridge/` and is built into the bundled JAR at npm publish time.
+
+## 5. Detailed components
 
 ### 5.1 gateway.ts — JVM lifecycle
 
@@ -109,8 +94,8 @@ import * as fs from 'fs';
 import * as https from 'https';
 
 const JAR_DIR = path.join(require('os').homedir(), '.oculix', 'lib');
-const OCULIX_JAR_NAME = 'oculixapi-3.0.3.jar';
-const OCULIX_JAR_URL = 'https://repo1.maven.org/maven2/io/github/oculix-org/oculixapi/3.0.3/oculixapi-3.0.3.jar';
+const OCULIX_JAR_NAME = 'oculixapi-3.0.4.jar';
+const OCULIX_JAR_URL = 'https://repo1.maven.org/maven2/io/github/oculix-org/oculixapi/3.0.4/oculixapi-3.0.4.jar';
 // shipped inside the npm package (compiled at npm publish time)
 const RPC_JAR_PATH = path.join(__dirname, '..', 'java-bin', 'operix-rpc-server.jar');
 
@@ -183,7 +168,7 @@ export function stop(): void {
 }
 ```
 
-### 5.2 index.ts — API publique
+### 5.2 index.ts — Public API
 
 ```typescript
 import { call, start, stop } from './gateway';
@@ -299,7 +284,7 @@ export class ADBScreen {
 }
 
 export class PaddleOCR {
-  // Backed by com.sikulix.ocr.PaddleOCREngine — Oculix's neural OCR engine
+  // Backed by com.sikulix.ocr.PaddleOCREngine — OculiX's neural OCR engine
   static async getInstance(): Promise<PaddleOCR> {
     await call('com.sikulix.ocr.PaddleOCREngine', 'getInstance');
     return new PaddleOCR();
@@ -309,9 +294,9 @@ export class PaddleOCR {
 export { start, stop } from './gateway';
 ```
 
-## 6. Exemples d'usage
+## 6. Usage examples
 
-### 6.1 Script basique
+### 6.1 Basic script
 
 ```javascript
 const { Screen } = require('oculix');
@@ -328,7 +313,7 @@ async function main() {
 main().catch(console.error);
 ```
 
-### 6.2 Avec Playwright (hybride browser + desktop)
+### 6.2 With Playwright (hybrid browser + desktop)
 
 ```javascript
 const { chromium } = require('playwright');
@@ -357,7 +342,7 @@ async function test() {
 test();
 ```
 
-### 6.3 Avec Jest
+### 6.3 With Jest
 
 ```javascript
 const { Screen, App } = require('oculix');
@@ -391,7 +376,7 @@ const { VNCScreen } = require('oculix');
 
 async function testPOS() {
   const vnc = await VNCScreen.start("10.184.10.147", 5900, "", 1920, 1080);
-  await vnc.click("auchan_logo.png");
+  await vnc.click("login_button.png");
   await vnc.type("1234");
   await vnc.stop();
 }
@@ -405,7 +390,7 @@ testPOS();
 {
   "name": "oculix",
   "version": "0.1.0",
-  "description": "Visual automation for the real world - Node.js wrapper for OculiX",
+  "description": "Visual automation for the real world — Node.js wrapper for OculiX",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -413,48 +398,49 @@ testPOS();
     "test": "jest",
     "prepublishOnly": "npm run build"
   },
-  "keywords": ["visual-testing", "automation", "ocr", "sikuli", "gui-testing", "desktop-testing"],
+  "keywords": ["visual-testing", "automation", "ocr", "sikuli", "oculix", "gui-testing", "desktop-testing", "vnc", "adb"],
   "author": "Julien Mer <julien.mer38@gmail.com>",
   "license": "MIT",
   "dependencies": {},
   "devDependencies": {
-    "typescript": "^5.0.0",
-    "@types/node": "^20.0.0",
-    "jest": "^29.0.0",
-    "ts-jest": "^29.0.0"
+    "typescript": "^5.6.0",
+    "@types/node": "^22.0.0",
+    "jest": "^30.0.0",
+    "ts-jest": "^29.2.0"
   },
-  "engines": { "node": ">=18.0.0" },
+  "engines": { "node": ">=20.0.0" },
   "repository": {
     "type": "git",
-    "url": "https://github.com/oculix-org/operix-js"
+    "url": "https://github.com/oculix-org/Operix",
+    "directory": "nodejs"
   }
 }
 ```
 
-## 8. Risques et mitigations
+## 8. Risks and mitigations
 
-| Risque | Mitigation |
+| Risk | Mitigation |
 |---|---|
-| Java 11+ pas installe | Message clair au premier appel + lien download Eclipse Temurin |
-| Latence JSON-RPC | Acceptable pour visual testing (actions = secondes). PaddleOCR retourne des JSON volumineux : a benchmarker. Migrer vers node-java-bridge si necessaire |
-| Build du JAR JSON-RPC | Maven build dans `java/` au `npm prepublish`, JAR shippe dans `java-bin/` du package npm |
-| Apertix OpenCV natifs | Bundle dans oculixapi.jar, charge cote JVM. A tester sur Win/Mac M1/Linux dans la CI |
-| async/await partout | Normal en Node, pas un probleme |
-| TypeScript obligatoire | Non, le package compile en JS, utilisable sans TS |
-| Concurrence avec Playwright | Complementaire, pas concurrent (browser vs desktop) |
+| Java 17+ not installed | Clear message on first call + download link to Eclipse Temurin |
+| JSON-RPC latency | Acceptable for visual testing (actions = seconds). PaddleOCR returns bulky JSON: needs benchmarking. Migrate to `node-java-bridge` if necessary |
+| JSON-RPC JAR build | Maven build in `jvm-bridge/` triggered by `npm prepublish`, JAR shipped in `java-bin/` of the npm package |
+| Apertix OpenCV natives | Bundled in oculixapi.jar, loaded on the JVM side. To be tested on Win/Mac M1/Linux in CI |
+| async/await everywhere | Normal in Node, not a problem |
+| TypeScript mandatory | No, the package compiles to JS, usable without TS |
+| Concurrency with Playwright | Complementary, not competing (browser vs desktop) |
 
 ## 9. Roadmap
 
-| Phase | Contenu | Duree |
+| Phase | Content | Duration |
 |---|---|---|
-| Phase 1 | Mini serveur JSON-RPC Java (`org.operix.rpc.Server`) + Maven build | 2 jours |
-| Phase 2 | Gateway TS + Screen + Pattern + App | 2 jours |
-| Phase 3 | VNCScreen + ADBScreen (`org.sikuli.android`) + PaddleOCR (`com.sikulix.ocr`) | 1 jour |
-| Phase 4 | TypeScript types + Jest examples | 1 jour |
-| Phase 5 | Playwright hybrid example | 1 jour |
-| Phase 6 | npm publication + README | 1 jour |
+| Phase 1 | Mini JSON-RPC Java server (`org.operix.rpc.Server`) + Maven build | 2 days |
+| Phase 2 | TS gateway + Screen + Pattern + App | 2 days |
+| Phase 3 | VNCScreen + ADBScreen (`org.sikuli.android`) + PaddleOCR (`com.sikulix.ocr`) | 1 day |
+| Phase 4 | TypeScript types + Jest examples | 1 day |
+| Phase 5 | Playwright hybrid example | 1 day |
+| Phase 6 | npm publication + README | 1 day |
 
-**Total : ~1.5 semaine** (le mini-serveur JSON-RPC ajoute 2 jours)
+**Total: ~1.5 weeks** (the mini JSON-RPC server adds 2 days)
 
 ---
 

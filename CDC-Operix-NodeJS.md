@@ -7,7 +7,7 @@
 **Target repo:** oculix-org/Operix (subfolder `nodejs/`)
 **npm package:** `oculix`
 **Dependency:** `io.github.oculix-org:oculixapi:3.0.4` (Maven Central)
-**Prerequisites:** Java 17+ (Eclipse Temurin / Azul Zulu recommended), Node.js 20+
+**Prerequisites:** Java 17+ (Eclipse Temurin / Azul Zulu recommended), Node.js 22+ (current LTS Krypton 24.x or LTS Jod 22.x)
 
 ---
 
@@ -403,12 +403,13 @@ testPOS();
   "license": "MIT",
   "dependencies": {},
   "devDependencies": {
-    "typescript": "^5.6.0",
-    "@types/node": "^22.0.0",
-    "jest": "^30.0.0",
-    "ts-jest": "^29.2.0"
+    "typescript": "^6.0.0",
+    "@types/node": "^26.0.0",
+    "@types/jest": "^30.0.0",
+    "jest": "^30.4.0",
+    "ts-jest": "^29.4.0"
   },
-  "engines": { "node": ">=20.0.0" },
+  "engines": { "node": ">=22.0.0" },
   "repository": {
     "type": "git",
     "url": "https://github.com/oculix-org/Operix",

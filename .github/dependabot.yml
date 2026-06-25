@@ -1,0 +1,68 @@
+# Dependabot configuration for Operix — multi-language monorepo.
+# Each language directory is monitored independently with grouped PRs for noisy
+# dependency families (types, jest, typescript ecosystem). The github-actions
+# block keeps the workflows in .github/workflows/ on their own update cadence.
+
+version: 2
+updates:
+  # Node.js — npm
+  - package-ecosystem: "npm"
+    directory: "/nodejs"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      types:
+        patterns: ["@types/*"]
+      jest-ecosystem:
+        patterns: ["jest", "ts-jest", "@types/jest"]
+      typescript-ecosystem:
+        patterns: ["typescript", "@typescript-eslint/*"]
+    labels:
+      - "dependencies"
+      - "nodejs"
+
+  # Python — pip / Poetry (pyproject.toml)
+  - package-ecosystem: "pip"
+    directory: "/python"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "python"
+
+  # .NET — NuGet
+  - package-ecosystem: "nuget"
+    directory: "/dotnet"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "dotnet"
+
+  # JVM bridge — Maven
+  - package-ecosystem: "maven"
+    directory: "/jvm-bridge"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "jvm-bridge"
+
+  # GitHub Actions versions across .github/workflows
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"

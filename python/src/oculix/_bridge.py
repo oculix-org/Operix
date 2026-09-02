@@ -162,6 +162,22 @@ class RemoteObject:
     def _call(self, method: str, *args) -> Any:
         return self._bridge.call(self._ref, method, list(args))
 
+    def __getattr__(self, name: str):
+        # Dynamic method proxy: any Java method of the remote object becomes
+        # callable directly (loc.getX(), rect.getWidth(), img.getSize()...).
+        # Only reached for attributes NOT found through __slots__, so the
+        # internal fields never collide. Dunder/underscore names are refused
+        # so pickling, copying and introspection keep their normal semantics.
+        if name.startswith("_"):
+            raise AttributeError(name)
+
+        def _proxy(*args) -> Any:
+            return self._bridge.call(self._ref, name, list(args))
+
+        _proxy.__name__ = name
+        _proxy.__qualname__ = f"RemoteObject.{name}"
+        return _proxy
+
     def __repr__(self) -> str:
         return f"<RemoteObject {self._class}#{self._ref}>"
 

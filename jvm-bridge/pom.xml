@@ -7,7 +7,7 @@
 
     <groupId>org.operix</groupId>
     <artifactId>operix-jvm-bridge</artifactId>
-    <version>0.1.0</version>
+    <version>1.0.0</version>
     <packaging>jar</packaging>
 
     <name>Operix JVM Bridge</name>
@@ -17,7 +17,7 @@
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <oculix.version>3.0.4</oculix.version>
+        <oculix.version>4.0.0</oculix.version>
     </properties>
 
     <dependencies>

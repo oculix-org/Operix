@@ -11,7 +11,7 @@ import * as https from 'https';
 import * as os from 'os';
 import * as path from 'path';
 
-export const BRIDGE_VERSION = '0.1.0';
+export const BRIDGE_VERSION = '1.0.0';
 const BRIDGE_JAR_NAME = `operix-jvm-bridge-${BRIDGE_VERSION}.jar`;
 const BRIDGE_JAR_URL =
   `https://github.com/oculix-org/Operix/releases/download/` +

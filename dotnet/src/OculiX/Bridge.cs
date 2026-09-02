@@ -20,7 +20,7 @@ namespace OculiX;
 /// </summary>
 public sealed class Bridge : IDisposable
 {
-    public const string BridgeVersion = "0.1.0";
+    public const string BridgeVersion = "1.0.0";
 
     private static readonly string BridgeJarName = $"operix-jvm-bridge-{BridgeVersion}.jar";
     private static readonly string BridgeJarUrl =

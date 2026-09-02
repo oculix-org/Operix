@@ -20,7 +20,7 @@ from typing import Any, Optional
 
 # --- bridge JAR distribution -------------------------------------------------
 
-BRIDGE_VERSION = "0.1.0"
+BRIDGE_VERSION = "1.0.0"
 BRIDGE_JAR_NAME = f"operix-jvm-bridge-{BRIDGE_VERSION}.jar"
 BRIDGE_JAR_URL = (
     "https://github.com/oculix-org/Operix/releases/download/"

@@ -6,7 +6,7 @@
 
 from oculix._bridge import Bridge, BridgeError, RemoteObject, default_bridge
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"
 __all__ = [
     "Bridge", "BridgeError", "RemoteObject", "default_bridge",
     "Screen", "Region", "Pattern", "Match", "App",

@@ -42,7 +42,7 @@
     "@types/node": "^26.0.1",
     "jest": "^30.4.0",
     "ts-jest": "^29.4.11",
-    "typescript": "^6.0.0"
+    "typescript": "^7.0.2"
   },
   "jest": {
     "preset": "ts-jest",
